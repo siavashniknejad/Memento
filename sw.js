@@ -2,7 +2,7 @@
 // Its job: cache the app's files the first time they're loaded,
 // so the app still opens even with no internet connection.
 
-const CACHE_NAME = 'siamind-v1';
+const CACHE_NAME = 'siamind-v2';
 const FILES_TO_CACHE = [
   './index.html',
   './manifest.json',

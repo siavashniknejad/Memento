@@ -38,6 +38,11 @@
     font-size: 14px;
     margin-bottom: 24px;
   }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
   .panel {
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -69,28 +74,65 @@
     cursor: pointer;
   }
   button:hover { opacity: 0.9; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
   button.secondary {
     background: var(--accent-light);
     color: var(--accent);
   }
-  #deckList {
+  button.link {
+    background: none;
+    color: var(--accent);
+    padding: 4px;
+    text-decoration: underline;
+    font-size: 13px;
+  }
+  .icon-btn {
+    background: none;
+    color: var(--accent);
+    padding: 4px 8px;
+    font-size: 15px;
+    line-height: 1;
+  }
+  .icon-btn.delete {
+    color: var(--danger);
+  }
+  .icon-btn:hover {
+    opacity: 0.7;
+  }
+  #deckList, #cardList {
     list-style: none;
     padding: 0;
     margin: 0;
   }
-  #deckList li {
+  #deckList li, #cardList li {
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 8px;
     margin-bottom: 8px;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
   }
   #deckList li.active {
     border-color: var(--accent);
     background: var(--accent-light);
+  }
+  .deck-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  #cardList li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  #cardList .card-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .review-card {
     background: var(--card-bg);
@@ -104,6 +146,7 @@
     justify-content: center;
     font-size: 16px;
     margin-bottom: 12px;
+    white-space: pre-line;
   }
   .review-actions {
     display: flex;
@@ -122,52 +165,6 @@
     text-align: center;
     padding: 8px;
   }
-  .deck-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
-  .icon-btn {
-    background: none;
-    border: none;
-    color: var(--accent);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 2px 6px;
-    line-height: 1;
-  }
-  .icon-btn.delete {
-    color: var(--danger);
-  }
-  .icon-btn:hover {
-    opacity: 0.7;
-  }
-  #cardList {
-    list-style: none;
-    padding: 0;
-    margin: 12px 0 0 0;
-  }
-  #cardList li {
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-  }
-  #cardList .card-text {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .review-card {
-    white-space: pre-line;
-  }
   .lookup-row {
     display: flex;
     gap: 8px;
@@ -178,110 +175,155 @@
   .lookup-row button {
     white-space: nowrap;
   }
-  .spinner-note {
-    font-size: 12px;
-    color: var(--accent);
+  .error-text {
+    color: var(--danger);
+    font-size: 13px;
     margin: -4px 0 8px 0;
   }
 </style>
 </head>
 <body>
 
-  <h1>SiaMind</h1>
-  <p class="subtitle">Your space to remember</p>
+  <!-- ============================================================ -->
+  <!-- AUTH SCREEN (shown when logged out)                           -->
+  <!-- ============================================================ -->
+  <div id="authScreen">
+    <h1>SiaMind</h1>
+    <p class="subtitle">Your space to remember</p>
 
-  <!-- Create deck -->
-  <div class="panel">
-    <h2>Create a new deck</h2>
-    <input type="text" id="deckNameInput" placeholder="Deck name, e.g. Spanish Vocab">
-    <button id="addDeckBtn">Create deck</button>
+    <div class="panel">
+      <h2 id="authTitle">Log in</h2>
+      <p class="error-text hidden" id="authError"></p>
+      <input type="email" id="authEmail" placeholder="Email">
+      <input type="password" id="authPassword" placeholder="Password (min 8 characters)">
+      <button id="authSubmitBtn">Log in</button>
+      <p style="text-align:center; margin-top: 12px;">
+        <button type="button" class="link" id="authToggleBtn">Need an account? Register</button>
+      </p>
+    </div>
   </div>
 
-  <!-- Deck list -->
-  <div class="panel">
-    <h2>My decks</h2>
-    <ul id="deckList">
-      <li class="empty-note">No decks yet</li>
-    </ul>
-  </div>
-
-  <!-- Add card -->
-  <div class="panel">
-    <h2>Add a card</h2>
-    <p class="empty-note" id="noDeckSelected">Select a deck first</p>
-    <div id="addCardForm" class="hidden">
-      <div class="lookup-row">
-        <input type="text" id="questionInput" placeholder="Word (e.g. resilient)">
-        <button type="button" class="secondary" id="lookupBtn">Look up</button>
+  <!-- ============================================================ -->
+  <!-- MAIN APP (shown when logged in)                                -->
+  <!-- ============================================================ -->
+  <div id="appScreen" class="hidden">
+    <div class="top-bar">
+      <div>
+        <h1>SiaMind</h1>
+        <p class="subtitle">Your space to remember</p>
       </div>
-      <p class="spinner-note hidden" id="lookupStatus"></p>
-      <textarea id="answerInput" rows="3" placeholder="Meaning + example sentence"></textarea>
-      <button id="addCardBtn">Add card</button>
-      <button type="button" id="cancelEditBtn" class="secondary hidden">Cancel edit</button>
+      <button type="button" class="link" id="logoutBtn">Log out</button>
     </div>
 
-    <ul id="cardList"></ul>
-  </div>
+    <!-- Create deck -->
+    <div class="panel">
+      <h2>Create a new deck</h2>
+      <input type="text" id="deckNameInput" placeholder="Deck name, e.g. Spanish Vocab">
+      <button id="addDeckBtn">Create deck</button>
+    </div>
 
-  <!-- Review mode -->
-  <div class="panel">
-    <h2>Review</h2>
-    <div class="review-card" id="reviewCard">
-      Select a deck to review its cards
+    <!-- Deck list -->
+    <div class="panel">
+      <h2>My decks</h2>
+      <ul id="deckList">
+        <li class="empty-note">No decks yet</li>
+      </ul>
     </div>
-    <div class="review-actions">
-      <button class="secondary" id="showAnswerBtn">Show answer</button>
+
+    <!-- Add / edit card -->
+    <div class="panel">
+      <h2>Add a card</h2>
+      <p class="empty-note" id="noDeckSelected">Select a deck first</p>
+      <div id="addCardForm" class="hidden">
+        <div class="lookup-row">
+          <input type="text" id="questionInput" placeholder="Word">
+          <button type="button" class="secondary" id="lookupBtn">Look up</button>
+        </div>
+        <p class="empty-note hidden" id="lookupStatus"></p>
+        <textarea id="answerInput" rows="3" placeholder="Meaning / answer"></textarea>
+        <button id="addCardBtn">Add card</button>
+        <button type="button" class="secondary hidden" id="cancelEditBtn">Cancel edit</button>
+
+        <ul id="cardList"></ul>
+      </div>
     </div>
-    <div class="review-actions hidden" id="knowActions">
-      <button class="unknown" id="unknownBtn">I didn't know it</button>
-      <button class="known" id="knownBtn">I knew it</button>
+
+    <!-- Review mode -->
+    <div class="panel">
+      <h2>Review</h2>
+      <div class="review-card" id="reviewCard">
+        Select a deck to review its cards
+      </div>
+      <div class="review-actions">
+        <button class="secondary" id="showAnswerBtn">Show answer</button>
+      </div>
+      <div class="review-actions hidden" id="knowActions">
+        <button class="unknown" id="unknownBtn">I didn't know it</button>
+        <button class="known" id="knownBtn">I knew it</button>
+      </div>
     </div>
-    <p class="empty-note" id="scheduleInfo"></p>
   </div>
 
   <script>
-    // ----- STATE -----
-    // This array is our "database" for now — just a variable in memory.
-    // Each deck is an object: { name: "...", cards: [] }
-    let decks = [];
+    // ================================================================
+    // API SETUP
+    // ================================================================
+    const API_BASE = 'https://siamind.novinapp.net';
+    const TOKEN_KEY = 'siamind_token';
 
-    // Keeps track of which deck the user has clicked on.
-    // We store its position (index) in the decks array. null = none selected.
-    let selectedDeckIndex = null;
-
-    // ----- SAVING & LOADING (localStorage) -----
-    // localStorage can only store strings, so we convert our `decks`
-    // array to a JSON string to save it, and parse it back to an
-    // array/objects when loading.
-    const STORAGE_KEY = 'flashcards-decks';
-
-    function saveDecks() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
+    function getToken() {
+      return localStorage.getItem(TOKEN_KEY);
+    }
+    function setToken(token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    }
+    function clearToken() {
+      localStorage.removeItem(TOKEN_KEY);
     }
 
-    function loadDecks() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        return []; // nothing saved yet
+    // A small wrapper around fetch() that automatically attaches the
+    // login token, and throws a normal JS Error on any non-2xx response
+    // so calling code can just use try/catch.
+    async function api(path, options) {
+      options = options || {};
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+      const token = getToken();
+      if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
       }
 
-      const parsed = JSON.parse(raw);
-
-      // IMPORTANT: JSON has no "Date" type. When we saved, each
-      // card's dueDate became a plain string like "2026-08-31T00:00:00.000Z".
-      // We need to manually convert those strings back into real
-      // Date objects, otherwise isDue()'s "<=" comparison won't work.
-      parsed.forEach(function (deck) {
-        deck.cards.forEach(function (card) {
-          card.dueDate = new Date(card.dueDate);
-        });
+      const response = await fetch(API_BASE + path, {
+        method: options.method || 'GET',
+        headers: headers,
+        body: options.body ? JSON.stringify(options.body) : undefined
       });
 
-      return parsed;
+      if (response.status === 204) {
+        return null; // no content (e.g. successful DELETE)
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Request failed');
+      }
+
+      return data;
     }
 
-    // Load any previously saved decks when the page starts.
-    decks = loadDecks();
+    // ================================================================
+    // ELEMENTS
+    // ================================================================
+    const authScreen = document.getElementById('authScreen');
+    const appScreen = document.getElementById('appScreen');
+    const authTitle = document.getElementById('authTitle');
+    const authError = document.getElementById('authError');
+    const authEmail = document.getElementById('authEmail');
+    const authPassword = document.getElementById('authPassword');
+    const authSubmitBtn = document.getElementById('authSubmitBtn');
+    const authToggleBtn = document.getElementById('authToggleBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
     const deckNameInput = document.getElementById('deckNameInput');
     const addDeckBtn = document.getElementById('addDeckBtn');
     const deckListEl = document.getElementById('deckList');
@@ -299,39 +341,172 @@
     const knowActions = document.getElementById('knowActions');
     const knownBtn = document.getElementById('knownBtn');
     const unknownBtn = document.getElementById('unknownBtn');
-    const scheduleInfo = document.getElementById('scheduleInfo');
 
-    // Tracks which card (index within the selected deck) is being edited.
-    // null means "not editing — Add card button creates a new card".
-    let editingCardIndex = null;
+    // ================================================================
+    // STATE
+    // ================================================================
+    let isRegisterMode = false;
+    let decks = [];
+    let selectedDeckId = null;
+    let cardsInSelectedDeck = [];
+    let editingCardId = null;
+    let currentReviewCard = null;
 
-    // ----- TODO 1: CREATE A DECK -----
-    addDeckBtn.addEventListener('click', function () {
-      const name = deckNameInput.value.trim(); // trim removes extra spaces
-
-      if (name === '') {
-        return; // do nothing if the input was empty
-      }
-
-      decks.push({ name: name, cards: [] });
-      deckNameInput.value = ''; // clear the input box
-
-      saveDecks();
-      renderDeckList(); // redraw the list on screen
+    // ================================================================
+    // AUTH SCREEN
+    // ================================================================
+    authToggleBtn.addEventListener('click', function () {
+      isRegisterMode = !isRegisterMode;
+      authTitle.textContent = isRegisterMode ? 'Register' : 'Log in';
+      authSubmitBtn.textContent = isRegisterMode ? 'Register' : 'Log in';
+      authToggleBtn.textContent = isRegisterMode
+        ? 'Already have an account? Log in'
+        : 'Need an account? Register';
+      authError.classList.add('hidden');
     });
 
-    // ----- TODO 2: SELECT A DECK -----
-    function selectDeck(index) {
-      selectedDeckIndex = index;
-      editingCardIndex = null;
-      renderDeckList();      // redraw so the selected one gets highlighted
+    authSubmitBtn.addEventListener('click', async function () {
+      const email = authEmail.value.trim();
+      const password = authPassword.value;
+
+      authError.classList.add('hidden');
+      authSubmitBtn.disabled = true;
+
+      try {
+        const path = isRegisterMode ? '/auth/register' : '/auth/login';
+        const data = await api(path, { method: 'POST', body: { email: email, password: password } });
+        setToken(data.token);
+        authPassword.value = '';
+        await enterApp();
+      } catch (error) {
+        authError.textContent = error.message;
+        authError.classList.remove('hidden');
+      } finally {
+        authSubmitBtn.disabled = false;
+      }
+    });
+
+    logoutBtn.addEventListener('click', function () {
+      clearToken();
+      decks = [];
+      selectedDeckId = null;
+      cardsInSelectedDeck = [];
+      appScreen.classList.add('hidden');
+      authScreen.classList.remove('hidden');
+    });
+
+    async function enterApp() {
+      authScreen.classList.add('hidden');
+      appScreen.classList.remove('hidden');
+      await loadDecks();
+    }
+
+    // On page load: if we already have a token, try to use it.
+    // If it's expired/invalid, the API call fails and we fall back
+    // to the login screen.
+    (async function init() {
+      if (getToken()) {
+        try {
+          await enterApp();
+        } catch (error) {
+          clearToken();
+        }
+      }
+    })();
+
+    // ================================================================
+    // DECKS
+    // ================================================================
+    async function loadDecks() {
+      decks = await api('/decks');
+      renderDeckList();
+    }
+
+    addDeckBtn.addEventListener('click', async function () {
+      const name = deckNameInput.value.trim();
+      if (name === '') {
+        return;
+      }
+      addDeckBtn.disabled = true;
+      try {
+        await api('/decks', { method: 'POST', body: { name: name } });
+        deckNameInput.value = '';
+        await loadDecks();
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        addDeckBtn.disabled = false;
+      }
+    });
+
+    function renderDeckList() {
+      deckListEl.innerHTML = '';
+
+      if (decks.length === 0) {
+        deckListEl.innerHTML = '<li class="empty-note">No decks yet</li>';
+        return;
+      }
+
+      decks.forEach(function (deck) {
+        const li = document.createElement('li');
+        if (deck.id === selectedDeckId) {
+          li.classList.add('active');
+        }
+
+        const row = document.createElement('div');
+        row.className = 'deck-row';
+
+        const label = document.createElement('span');
+        label.style.flex = '1';
+        label.textContent = deck.name + ' (' + deck.card_count + ' cards)';
+        label.addEventListener('click', function () {
+          selectDeck(deck.id);
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'icon-btn delete';
+        deleteBtn.textContent = '🗑';
+        deleteBtn.title = 'Delete deck';
+        deleteBtn.addEventListener('click', async function (event) {
+          event.stopPropagation();
+          const confirmed = confirm('Delete deck "' + deck.name + '" and all its cards?');
+          if (!confirmed) {
+            return;
+          }
+          try {
+            await api('/decks/' + deck.id, { method: 'DELETE' });
+            if (selectedDeckId === deck.id) {
+              selectedDeckId = null;
+              cardsInSelectedDeck = [];
+              updateAddCardVisibility();
+              renderCardList();
+              startReview();
+            }
+            await loadDecks();
+          } catch (error) {
+            alert(error.message);
+          }
+        });
+
+        row.appendChild(label);
+        row.appendChild(deleteBtn);
+        li.appendChild(row);
+        deckListEl.appendChild(li);
+      });
+    }
+
+    async function selectDeck(deckId) {
+      selectedDeckId = deckId;
+      editingCardId = null;
+      renderDeckList();
       updateAddCardVisibility();
-      renderCardList();      // show this deck's cards below the add-card form
-      startReview();         // load a card from the newly selected deck
+      await loadCards();
+      startReview();
     }
 
     function updateAddCardVisibility() {
-      if (selectedDeckIndex === null) {
+      if (selectedDeckId === null) {
         noDeckSelected.classList.remove('hidden');
         addCardForm.classList.add('hidden');
       } else {
@@ -340,149 +515,70 @@
       }
     }
 
-    // ----- RENDER FUNCTION -----
-    // This function's only job is: look at the `decks` array,
-    // and redraw the <ul> to match it. We call this every time
-    // decks or selectedDeckIndex changes.
-    function renderDeckList() {
-      deckListEl.innerHTML = ''; // clear the current list
-
-      if (decks.length === 0) {
-        deckListEl.innerHTML = '<li class="empty-note">No decks yet</li>';
-        return;
-      }
-
-      decks.forEach(function (deck, index) {
-        const li = document.createElement('li');
-
-        const row = document.createElement('div');
-        row.className = 'deck-row';
-
-        const label = document.createElement('span');
-        label.textContent = deck.name + ' (' + deck.cards.length + ' cards)';
-        label.style.flex = '1';
-        label.addEventListener('click', function () {
-          selectDeck(index);
-        });
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'icon-btn delete';
-        deleteBtn.textContent = '🗑';
-        deleteBtn.title = 'Delete deck';
-        deleteBtn.addEventListener('click', function (event) {
-          event.stopPropagation(); // don't trigger selectDeck
-          const confirmed = confirm('Delete deck "' + deck.name + '" and all its cards?');
-          if (!confirmed) {
-            return;
-          }
-          decks.splice(index, 1);
-
-          // If we just deleted the selected deck (or one before it),
-          // clear/adjust the selection so we don't point at the wrong deck.
-          if (selectedDeckIndex === index) {
-            selectedDeckIndex = null;
-            updateAddCardVisibility();
-            renderCardList();
-            startReview();
-          } else if (selectedDeckIndex !== null && selectedDeckIndex > index) {
-            selectedDeckIndex -= 1;
-          }
-
-          saveDecks();
-          renderDeckList();
-        });
-
-        row.appendChild(label);
-        row.appendChild(deleteBtn);
-        li.appendChild(row);
-
-        if (index === selectedDeckIndex) {
-          li.classList.add('active');
-        }
-
-        deckListEl.appendChild(li);
-      });
+    // ================================================================
+    // CARDS
+    // ================================================================
+    async function loadCards() {
+      cardsInSelectedDeck = await api('/decks/' + selectedDeckId + '/cards');
+      renderCardList();
     }
 
-    // ----- TODO 3: ADD / EDIT A CARD -----
-    addCardBtn.addEventListener('click', function () {
-      // Guard clause: if no deck is selected, do nothing.
-      // (Shouldn't normally happen since the form is hidden, but it's
-      // good practice to protect the function anyway.)
-      if (selectedDeckIndex === null) {
+    addCardBtn.addEventListener('click', async function () {
+      const front = questionInput.value.trim();
+      const back = answerInput.value.trim();
+
+      if (front === '' || back === '') {
         return;
       }
 
-      const question = questionInput.value.trim();
-      const answer = answerInput.value.trim();
+      addCardBtn.disabled = true;
+      try {
+        if (editingCardId === null) {
+          await api('/decks/' + selectedDeckId + '/cards', {
+            method: 'POST',
+            body: { front: front, back: back }
+          });
+        } else {
+          await api('/cards/' + editingCardId, {
+            method: 'PUT',
+            body: { front: front, back: back }
+          });
+          editingCardId = null;
+          cancelEditBtn.classList.add('hidden');
+          addCardBtn.textContent = 'Add card';
+        }
 
-      if (question === '' || answer === '') {
-        return; // require both fields
-      }
-
-      const deck = decks[selectedDeckIndex];
-
-      if (editingCardIndex === null) {
-        // Adding a brand new card
-        deck.cards.push({
-          question: question,
-          answer: answer,
-          // SM-2 scheduling fields — every new card starts like this:
-          repetitions: 0,
-          easeFactor: 2.5,
-          interval: 0,
-          dueDate: new Date() // due immediately, since it's never been reviewed
-        });
-      } else {
-        // Editing an existing card — only overwrite question/answer,
-        // leave its SM-2 scheduling fields untouched.
-        const card = deck.cards[editingCardIndex];
-        card.question = question;
-        card.answer = answer;
-        editingCardIndex = null;
-        cancelEditBtn.classList.add('hidden');
-        addCardBtn.textContent = 'Add card';
-      }
-
-      questionInput.value = '';
-      answerInput.value = '';
-
-      saveDecks();
-      renderDeckList();  // so the "(N cards)" count updates
-      renderCardList();  // refresh the card list under the form
-
-      // If the review panel was showing "no cards yet", refresh it
-      // now that this deck has at least one card.
-      if (currentReviewCardIndex === null) {
-        startReview();
+        questionInput.value = '';
+        answerInput.value = '';
+        await loadDecks();   // refresh card counts
+        await loadCards();
+        if (currentReviewCard === null) {
+          startReview();
+        }
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        addCardBtn.disabled = false;
       }
     });
 
     cancelEditBtn.addEventListener('click', function () {
-      editingCardIndex = null;
+      editingCardId = null;
       questionInput.value = '';
       answerInput.value = '';
       addCardBtn.textContent = 'Add card';
       cancelEditBtn.classList.add('hidden');
     });
 
-    // ----- RENDER CARD LIST (with edit/delete) -----
     function renderCardList() {
       cardListEl.innerHTML = '';
 
-      if (selectedDeckIndex === null) {
-        return;
-      }
-
-      const deck = decks[selectedDeckIndex];
-
-      deck.cards.forEach(function (card, index) {
+      cardsInSelectedDeck.forEach(function (card) {
         const li = document.createElement('li');
 
         const textSpan = document.createElement('span');
         textSpan.className = 'card-text';
-        textSpan.textContent = card.question + ' — ' + card.answer;
+        textSpan.textContent = card.front + ' — ' + card.back;
 
         const editBtn = document.createElement('button');
         editBtn.type = 'button';
@@ -490,9 +586,9 @@
         editBtn.textContent = '✎';
         editBtn.title = 'Edit card';
         editBtn.addEventListener('click', function () {
-          editingCardIndex = index;
-          questionInput.value = card.question;
-          answerInput.value = card.answer;
+          editingCardId = card.id;
+          questionInput.value = card.front;
+          answerInput.value = card.back;
           addCardBtn.textContent = 'Save changes';
           cancelEditBtn.classList.remove('hidden');
           questionInput.focus();
@@ -503,22 +599,22 @@
         deleteBtn.className = 'icon-btn delete';
         deleteBtn.textContent = '🗑';
         deleteBtn.title = 'Delete card';
-        deleteBtn.addEventListener('click', function () {
+        deleteBtn.addEventListener('click', async function () {
           const confirmed = confirm('Delete this card?');
           if (!confirmed) {
             return;
           }
-          deck.cards.splice(index, 1);
-
-          // If we were editing this exact card, reset the form.
-          if (editingCardIndex === index) {
-            cancelEditBtn.click();
+          try {
+            await api('/cards/' + card.id, { method: 'DELETE' });
+            if (editingCardId === card.id) {
+              cancelEditBtn.click();
+            }
+            await loadDecks();
+            await loadCards();
+            startReview();
+          } catch (error) {
+            alert(error.message);
           }
-
-          saveDecks();
-          renderDeckList();
-          renderCardList();
-          startReview(); // pick a new card since indexes shifted
         });
 
         li.appendChild(textSpan);
@@ -528,15 +624,68 @@
       });
     }
 
-    // ----- DICTIONARY LOOKUP -----
-    // Calls OUR OWN backend (not OpenAI directly!) which safely holds
-    // the real OpenAI API key on the server side. See the backend's
-    // server.js for why this extra step matters.
-    const BACKEND_URL = 'https://siamind.novinapp.net';
+    // ================================================================
+    // REVIEW
+    // ================================================================
+    function startReview() {
+      knowActions.classList.add('hidden');
+      showAnswerBtn.classList.remove('hidden');
 
-    lookupBtn.addEventListener('click', function () {
+      if (selectedDeckId === null) {
+        reviewCard.textContent = 'Select a deck to review its cards';
+        currentReviewCard = null;
+        return;
+      }
+
+      if (cardsInSelectedDeck.length === 0) {
+        reviewCard.textContent = 'This deck has no cards yet';
+        currentReviewCard = null;
+        return;
+      }
+
+      // Random card from the whole deck (see project docs for why —
+      // same choice as the earlier localStorage version).
+      const randomIndex = Math.floor(Math.random() * cardsInSelectedDeck.length);
+      currentReviewCard = cardsInSelectedDeck[randomIndex];
+      reviewCard.textContent = currentReviewCard.front;
+    }
+
+    showAnswerBtn.addEventListener('click', function () {
+      if (currentReviewCard === null) {
+        return;
+      }
+      let text = currentReviewCard.back;
+      if (currentReviewCard.example) {
+        text += '\n\nExample: ' + currentReviewCard.example;
+      }
+      reviewCard.textContent = text;
+      showAnswerBtn.classList.add('hidden');
+      knowActions.classList.remove('hidden');
+    });
+
+    async function answerReview(knewIt) {
+      if (currentReviewCard === null) {
+        return;
+      }
+      try {
+        await api('/cards/' + currentReviewCard.id + '/review', {
+          method: 'PATCH',
+          body: { knewIt: knewIt }
+        });
+      } catch (error) {
+        console.error('Failed to save review result:', error);
+      }
+      startReview();
+    }
+
+    knownBtn.addEventListener('click', function () { answerReview(true); });
+    unknownBtn.addEventListener('click', function () { answerReview(false); });
+
+    // ================================================================
+    // DICTIONARY LOOKUP (unchanged — still calls our backend)
+    // ================================================================
+    lookupBtn.addEventListener('click', async function () {
       const word = questionInput.value.trim();
-
       if (word === '') {
         return;
       }
@@ -545,151 +694,24 @@
       lookupStatus.textContent = 'Looking up "' + word + '"...';
       lookupBtn.disabled = true;
 
-      fetch(BACKEND_URL + '/define', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word: word })
-      })
-        .then(function (response) {
-          if (!response.ok) {
-            throw new Error('Lookup failed');
-          }
-          return response.json();
-        })
-        .then(function (data) {
-          let result = data.definition;
-          if (data.example) {
-            result += '\n\nExample: ' + data.example;
-          }
-          answerInput.value = result;
-          lookupStatus.textContent = 'Found a definition — feel free to edit it.';
-        })
-        .catch(function () {
-          lookupStatus.textContent = 'Could not reach the lookup service. Try typing the meaning yourself.';
-        })
-        .finally(function () {
-          lookupBtn.disabled = false;
-        });
-    });
-
-    // TODO 4: In review mode, show a random card from the selected deck.
-    // Clicking "Show answer" reveals the answer and shows the
-    // "I knew it / I didn't know it" buttons.
-
-    // Keeps track of which card (by index within the deck's cards array)
-    // is currently being shown in the review panel.
-    let currentReviewCardIndex = null;
-
-    // Returns true if a card's dueDate is today or earlier.
-    function isDue(card) {
-      return card.dueDate <= new Date();
-    }
-
-    function startReview() {
-      // Reset the answer/buttons back to their initial state
-      knowActions.classList.add('hidden');
-      showAnswerBtn.classList.remove('hidden');
-
-      if (selectedDeckIndex === null) {
-        reviewCard.textContent = 'Select a deck to review its cards';
-        currentReviewCardIndex = null;
-        return;
-      }
-
-      const deck = decks[selectedDeckIndex];
-
-      if (deck.cards.length === 0) {
-        reviewCard.textContent = 'This deck has no cards yet';
-        currentReviewCardIndex = null;
-        return;
-      }
-
-      // NOTE: For now we pick randomly from ALL cards, not just due ones,
-      // so review feels random every time you open the app while testing.
-      // The SM-2 fields (dueDate, interval, etc.) are still being tracked
-      // in the background — later we can switch back to due-only filtering
-      // for "real" spaced repetition once you're ready.
-      const randomIndex = Math.floor(Math.random() * deck.cards.length);
-      currentReviewCardIndex = randomIndex;
-      const card = deck.cards[currentReviewCardIndex];
-      reviewCard.textContent = card.question;
-    }
-
-    // ----- SM-2 SCHEDULING -----
-    // Updates a card's repetitions/easeFactor/interval/dueDate
-    // based on whether the user knew it or not.
-    function scheduleCard(card, knewIt) {
-      if (!knewIt) {
-        card.repetitions = 0;
-        card.interval = 1;
-        card.easeFactor = Math.max(1.3, card.easeFactor - 0.2);
-      } else {
-        card.repetitions += 1;
-
-        if (card.repetitions === 1) {
-          card.interval = 1;
-        } else if (card.repetitions === 2) {
-          card.interval = 6;
-        } else {
-          card.interval = Math.round(card.interval * card.easeFactor);
+      try {
+        const data = await api('/define', { method: 'POST', body: { word: word } });
+        let result = data.definition;
+        if (data.example) {
+          result += '\n\nExample: ' + data.example;
         }
-
-        card.easeFactor = card.easeFactor + 0.1;
+        answerInput.value = result;
+        lookupStatus.textContent = 'Found a definition — feel free to edit it.';
+      } catch (error) {
+        lookupStatus.textContent = 'Could not reach the lookup service. Try typing the meaning yourself.';
+      } finally {
+        lookupBtn.disabled = false;
       }
-
-      // Set the new due date: today + interval days
-      const newDueDate = new Date();
-      newDueDate.setDate(newDueDate.getDate() + card.interval);
-      card.dueDate = newDueDate;
-    }
-
-    showAnswerBtn.addEventListener('click', function () {
-      if (selectedDeckIndex === null || currentReviewCardIndex === null) {
-        return;
-      }
-      const deck = decks[selectedDeckIndex];
-      const card = deck.cards[currentReviewCardIndex];
-
-      reviewCard.textContent = card.answer;
-      showAnswerBtn.classList.add('hidden');
-      knowActions.classList.remove('hidden');
     });
 
-    knownBtn.addEventListener('click', function () {
-      const deck = decks[selectedDeckIndex];
-      const card = deck.cards[currentReviewCardIndex];
-      scheduleCard(card, true);
-      showScheduleDebugInfo(card);
-      saveDecks();
-      startReview(); // move on to another due card
-    });
-
-    unknownBtn.addEventListener('click', function () {
-      const deck = decks[selectedDeckIndex];
-      const card = deck.cards[currentReviewCardIndex];
-      scheduleCard(card, false);
-      showScheduleDebugInfo(card);
-      saveDecks();
-      startReview(); // move on to another due card
-    });
-
-    // TEMPORARY: prints what SM-2 just calculated, so we can verify
-    // the logic works without waiting real days for cards to come due.
-    // We'll remove this once we trust the algorithm.
-    function showScheduleDebugInfo(card) {
-      scheduleInfo.textContent =
-        'Debug — interval: ' + card.interval + ' day(s), ' +
-        'ease: ' + card.easeFactor.toFixed(2) + ', ' +
-        'next due: ' + card.dueDate.toLocaleDateString();
-    }
-
-    // ----- INITIAL RENDER -----
-    // Show whatever decks were loaded from localStorage right away.
-    renderDeckList();
-
-    // ----- REGISTER SERVICE WORKER -----
-    // This is what makes the app installable and able to work offline.
-    // 'serviceWorker' in navigator checks the browser actually supports it.
+    // ================================================================
+    // SERVICE WORKER
+    // ================================================================
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('sw.js');
