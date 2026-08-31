@@ -220,20 +220,29 @@
     background: var(--accent);
     color: #ffffff;
   }
-  .lookup-definition {
-    font-size: 14px;
-    color: var(--ink);
-    margin-bottom: 10px;
+  .lookup-field-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #4d7593;
+    margin: 8px 0 4px 0;
   }
-  .lookup-example {
-    font-size: 13px;
-    color: var(--accent);
+  .lookup-editable {
+    width: 100%;
     background: var(--card-bg);
-    border-left: 3px solid var(--accent);
-    border-radius: 4px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
     padding: 8px 10px;
-    margin-bottom: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--ink);
+    resize: vertical;
+    margin-bottom: 4px;
+  }
+  .lookup-editable-example {
     font-style: italic;
+    color: var(--accent);
+    border-left: 3px solid var(--accent);
   }
   .synonyms-label {
     font-size: 11px;
@@ -321,10 +330,15 @@
             <span class="badge badge-pos hidden" id="resultPos"></span>
             <span class="badge badge-level hidden" id="resultLevel"></span>
           </div>
-          <p class="lookup-definition" id="resultDefinition"></p>
-          <p class="lookup-example hidden" id="resultExample"></p>
+
+          <div class="lookup-field-label">Definition</div>
+          <textarea class="lookup-editable" id="resultDefinitionInput" rows="2"></textarea>
+
+          <div class="lookup-field-label">Example</div>
+          <textarea class="lookup-editable lookup-editable-example" id="resultExampleInput" rows="2"></textarea>
+
           <div id="resultSynonymsBlock" class="hidden">
-            <div class="synonyms-label">Synonyms</div>
+            <div class="lookup-field-label">Synonyms</div>
             <div class="synonym-chips" id="resultSynonyms"></div>
           </div>
         </div>
@@ -428,8 +442,8 @@
     const resultWord = document.getElementById('resultWord');
     const resultPos = document.getElementById('resultPos');
     const resultLevel = document.getElementById('resultLevel');
-    const resultDefinition = document.getElementById('resultDefinition');
-    const resultExample = document.getElementById('resultExample');
+    const resultDefinitionInput = document.getElementById('resultDefinitionInput');
+    const resultExampleInput = document.getElementById('resultExampleInput');
     const resultSynonymsBlock = document.getElementById('resultSynonymsBlock');
     const resultSynonyms = document.getElementById('resultSynonyms');
     const reviewCard = document.getElementById('reviewCard');
@@ -595,6 +609,7 @@
     async function selectDeck(deckId) {
       selectedDeckId = deckId;
       editingCardId = null;
+      resetLookupUI();
       renderDeckList();
       updateAddCardVisibility();
       await loadCards();
@@ -621,7 +636,21 @@
 
     addCardBtn.addEventListener('click', async function () {
       const front = questionInput.value.trim();
-      const back = answerInput.value.trim();
+
+      // Exactly one editor is visible at a time: if a lookup result is
+      // showing, its editable definition/example fields are the source
+      // of truth; otherwise it's the plain "Meaning / answer" textarea.
+      let back;
+      if (!lookupResult.classList.contains('hidden')) {
+        const definition = resultDefinitionInput.value.trim();
+        const example = resultExampleInput.value.trim();
+        back = definition;
+        if (example) {
+          back += '\n\nExample: ' + example;
+        }
+      } else {
+        back = answerInput.value.trim();
+      }
 
       if (front === '' || back === '') {
         return;
@@ -645,9 +674,7 @@
         }
 
         questionInput.value = '';
-        answerInput.value = '';
-        lookupResult.classList.add('hidden');
-        lookupStatus.classList.add('hidden');
+        resetLookupUI();
         await loadDecks();   // refresh card counts
         await loadCards();
         if (currentReviewCard === null) {
@@ -663,11 +690,9 @@
     cancelEditBtn.addEventListener('click', function () {
       editingCardId = null;
       questionInput.value = '';
-      answerInput.value = '';
       addCardBtn.textContent = 'Add card';
       cancelEditBtn.classList.add('hidden');
-      lookupResult.classList.add('hidden');
-      lookupStatus.classList.add('hidden');
+      resetLookupUI();
     });
 
     function renderCardList() {
@@ -687,6 +712,7 @@
         editBtn.title = 'Edit card';
         editBtn.addEventListener('click', function () {
           editingCardId = card.id;
+          resetLookupUI(); // ensure we're editing via the plain textarea, not a stale lookup card
           questionInput.value = card.front;
           answerInput.value = card.back;
           addCardBtn.textContent = 'Save changes';
@@ -798,28 +824,22 @@
       try {
         const data = await api('/define', { method: 'POST', body: { word: word } });
         renderLookupResult(data);
-
-        // Keep existing behavior: the editable answer field is still
-        // pre-filled with definition + example, and the user can edit
-        // it before saving the card — unchanged from before.
-        let result = data.definition || '';
-        if (data.example) {
-          result += '\n\nExample: ' + data.example;
-        }
-        answerInput.value = result;
-
         lookupStatus.textContent = 'Found a definition — feel free to edit it below before saving.';
       } catch (error) {
         lookupResult.classList.add('hidden');
+        answerInput.classList.remove('hidden'); // fall back to plain manual entry
         lookupStatus.textContent = 'Could not reach the lookup service. Try typing the meaning yourself.';
       } finally {
         lookupBtn.disabled = false;
       }
     });
 
-    // Fills in the rich lookup-result card (word, part of speech, CEFR
-    // level, definition, example, synonyms). Any field that's missing
-    // or empty is hidden rather than shown as blank/"undefined".
+    // Fills in the single lookup-result card (word, part of speech,
+    // CEFR level, editable definition, editable example, synonyms).
+    // Missing/empty fields are hidden rather than shown as blank.
+    // While this card is visible, the old plain "Meaning / answer"
+    // textarea is hidden — there is exactly one place to edit the
+    // definition/example, never both at once.
     function renderLookupResult(data) {
       resultWord.textContent = data.word || '';
 
@@ -837,14 +857,8 @@
         resultLevel.classList.add('hidden');
       }
 
-      resultDefinition.textContent = data.definition || '';
-
-      if (data.example) {
-        resultExample.textContent = data.example;
-        resultExample.classList.remove('hidden');
-      } else {
-        resultExample.classList.add('hidden');
-      }
+      resultDefinitionInput.value = data.definition || '';
+      resultExampleInput.value = data.example || '';
 
       resultSynonyms.innerHTML = '';
       if (Array.isArray(data.synonyms) && data.synonyms.length > 0) {
@@ -860,6 +874,18 @@
       }
 
       lookupResult.classList.remove('hidden');
+      answerInput.classList.add('hidden'); // avoid showing two editors at once
+    }
+
+    // Resets the lookup card and brings back the plain manual-entry
+    // textarea. Used after saving a card, canceling an edit, or
+    // starting a fresh edit of an existing card.
+    function resetLookupUI() {
+      lookupResult.classList.add('hidden');
+      lookupStatus.classList.add('hidden');
+      resultDefinitionInput.value = '';
+      resultExampleInput.value = '';
+      answerInput.classList.remove('hidden');
     }
 
     // ================================================================
