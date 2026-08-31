@@ -235,8 +235,12 @@
     padding: 8px 10px;
     font-size: 14px;
     font-family: inherit;
+    line-height: 1.4;
     color: var(--ink);
-    resize: vertical;
+    box-sizing: border-box;
+    resize: none;         /* height is now driven by JS, not a drag handle */
+    overflow: hidden;      /* avoid a scrollbar flashing while height updates */
+    min-height: 2.4em;     /* about one line, so an empty field isn't collapsed */
     margin-bottom: 4px;
   }
   .lookup-editable-example {
@@ -332,10 +336,10 @@
           </div>
 
           <div class="lookup-field-label">Definition</div>
-          <textarea class="lookup-editable" id="resultDefinitionInput" rows="2"></textarea>
+          <textarea class="lookup-editable" id="resultDefinitionInput"></textarea>
 
           <div class="lookup-field-label">Example</div>
-          <textarea class="lookup-editable lookup-editable-example" id="resultExampleInput" rows="2"></textarea>
+          <textarea class="lookup-editable lookup-editable-example" id="resultExampleInput"></textarea>
 
           <div id="resultSynonymsBlock" class="hidden">
             <div class="lookup-field-label">Synonyms</div>
@@ -840,6 +844,23 @@
     // While this card is visible, the old plain "Meaning / answer"
     // textarea is hidden — there is exactly one place to edit the
     // definition/example, never both at once.
+    // Resizes a textarea to fit its content exactly, no scrollbar.
+    // Setting height to 'auto' first is required — otherwise the
+    // browser keeps the previous height when measuring scrollHeight,
+    // so a field never shrinks after you delete text from it.
+    function autoResizeTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+
+    // Live resize as the user types in either field.
+    resultDefinitionInput.addEventListener('input', function () {
+      autoResizeTextarea(resultDefinitionInput);
+    });
+    resultExampleInput.addEventListener('input', function () {
+      autoResizeTextarea(resultExampleInput);
+    });
+
     function renderLookupResult(data) {
       resultWord.textContent = data.word || '';
 
@@ -875,6 +896,12 @@
 
       lookupResult.classList.remove('hidden');
       answerInput.classList.add('hidden'); // avoid showing two editors at once
+
+      // The textareas must be visible (not display:none) before we can
+      // measure scrollHeight correctly, so this runs after un-hiding
+      // the card above.
+      autoResizeTextarea(resultDefinitionInput);
+      autoResizeTextarea(resultExampleInput);
     }
 
     // Resets the lookup card and brings back the plain manual-entry
@@ -885,6 +912,8 @@
       lookupStatus.classList.add('hidden');
       resultDefinitionInput.value = '';
       resultExampleInput.value = '';
+      resultDefinitionInput.style.height = 'auto';
+      resultExampleInput.style.height = 'auto';
       answerInput.classList.remove('hidden');
     }
 
