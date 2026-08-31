@@ -3,21 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Cards — Flashcards</title>
+<title>SiaMind</title>
 
 <!-- PWA setup -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#3f6f5e">
+<meta name="theme-color" content="#0f2e4c">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root {
-    --bg: #faf9f7;
-    --ink: #1f2620;
-    --accent: #3f6f5e;
-    --accent-light: #e8f0ec;
+    --bg: #eef5f8;
+    --ink: #0f2e4c;
+    --accent: #1f5f8b;
+    --accent-light: #dceaf1;
     --card-bg: #ffffff;
-    --border: #dcd9d3;
-    --danger: #b5533c;
+    --border: #cddce4;
+    --danger: #c0533f;
   }
   * { box-sizing: border-box; }
   body {
@@ -34,7 +34,7 @@
     margin-bottom: 4px;
   }
   .subtitle {
-    color: #6b7268;
+    color: #4d7593;
     font-size: 14px;
     margin-bottom: 24px;
   }
@@ -117,17 +117,78 @@
   .unknown { background: var(--danger); }
   .hidden { display: none; }
   .empty-note {
-    color: #8a8f89;
+    color: #6f8ba0;
     font-size: 13px;
     text-align: center;
     padding: 8px;
+  }
+  .deck-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+    line-height: 1;
+  }
+  .icon-btn.delete {
+    color: var(--danger);
+  }
+  .icon-btn:hover {
+    opacity: 0.7;
+  }
+  #cardList {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0 0;
+  }
+  #cardList li {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  #cardList .card-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .review-card {
+    white-space: pre-line;
+  }
+  .lookup-row {
+    display: flex;
+    gap: 8px;
+  }
+  .lookup-row input {
+    flex: 1;
+  }
+  .lookup-row button {
+    white-space: nowrap;
+  }
+  .spinner-note {
+    font-size: 12px;
+    color: var(--accent);
+    margin: -4px 0 8px 0;
   }
 </style>
 </head>
 <body>
 
-  <h1>My Cards</h1>
-  <p class="subtitle">Step 1: layout only — no logic wired up yet</p>
+  <h1>SiaMind</h1>
+  <p class="subtitle">Your space to remember</p>
 
   <!-- Create deck -->
   <div class="panel">
@@ -149,10 +210,17 @@
     <h2>Add a card</h2>
     <p class="empty-note" id="noDeckSelected">Select a deck first</p>
     <div id="addCardForm" class="hidden">
-      <input type="text" id="questionInput" placeholder="Question">
-      <input type="text" id="answerInput" placeholder="Answer">
+      <div class="lookup-row">
+        <input type="text" id="questionInput" placeholder="Word (e.g. resilient)">
+        <button type="button" class="secondary" id="lookupBtn">Look up</button>
+      </div>
+      <p class="spinner-note hidden" id="lookupStatus"></p>
+      <textarea id="answerInput" rows="3" placeholder="Meaning + example sentence"></textarea>
       <button id="addCardBtn">Add card</button>
+      <button type="button" id="cancelEditBtn" class="secondary hidden">Cancel edit</button>
     </div>
+
+    <ul id="cardList"></ul>
   </div>
 
   <!-- Review mode -->
@@ -222,12 +290,20 @@
     const questionInput = document.getElementById('questionInput');
     const answerInput = document.getElementById('answerInput');
     const addCardBtn = document.getElementById('addCardBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const cardListEl = document.getElementById('cardList');
+    const lookupBtn = document.getElementById('lookupBtn');
+    const lookupStatus = document.getElementById('lookupStatus');
     const reviewCard = document.getElementById('reviewCard');
     const showAnswerBtn = document.getElementById('showAnswerBtn');
     const knowActions = document.getElementById('knowActions');
     const knownBtn = document.getElementById('knownBtn');
     const unknownBtn = document.getElementById('unknownBtn');
     const scheduleInfo = document.getElementById('scheduleInfo');
+
+    // Tracks which card (index within the selected deck) is being edited.
+    // null means "not editing — Add card button creates a new card".
+    let editingCardIndex = null;
 
     // ----- TODO 1: CREATE A DECK -----
     addDeckBtn.addEventListener('click', function () {
@@ -247,8 +323,10 @@
     // ----- TODO 2: SELECT A DECK -----
     function selectDeck(index) {
       selectedDeckIndex = index;
+      editingCardIndex = null;
       renderDeckList();      // redraw so the selected one gets highlighted
       updateAddCardVisibility();
+      renderCardList();      // show this deck's cards below the add-card form
       startReview();         // load a card from the newly selected deck
     }
 
@@ -276,21 +354,58 @@
 
       decks.forEach(function (deck, index) {
         const li = document.createElement('li');
-        li.textContent = deck.name + ' (' + deck.cards.length + ' cards)';
+
+        const row = document.createElement('div');
+        row.className = 'deck-row';
+
+        const label = document.createElement('span');
+        label.textContent = deck.name + ' (' + deck.cards.length + ' cards)';
+        label.style.flex = '1';
+        label.addEventListener('click', function () {
+          selectDeck(index);
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'icon-btn delete';
+        deleteBtn.textContent = '🗑';
+        deleteBtn.title = 'Delete deck';
+        deleteBtn.addEventListener('click', function (event) {
+          event.stopPropagation(); // don't trigger selectDeck
+          const confirmed = confirm('Delete deck "' + deck.name + '" and all its cards?');
+          if (!confirmed) {
+            return;
+          }
+          decks.splice(index, 1);
+
+          // If we just deleted the selected deck (or one before it),
+          // clear/adjust the selection so we don't point at the wrong deck.
+          if (selectedDeckIndex === index) {
+            selectedDeckIndex = null;
+            updateAddCardVisibility();
+            renderCardList();
+            startReview();
+          } else if (selectedDeckIndex !== null && selectedDeckIndex > index) {
+            selectedDeckIndex -= 1;
+          }
+
+          saveDecks();
+          renderDeckList();
+        });
+
+        row.appendChild(label);
+        row.appendChild(deleteBtn);
+        li.appendChild(row);
 
         if (index === selectedDeckIndex) {
           li.classList.add('active');
         }
 
-        li.addEventListener('click', function () {
-          selectDeck(index);
-        });
-
         deckListEl.appendChild(li);
       });
     }
 
-    // ----- TODO 3: ADD A CARD -----
+    // ----- TODO 3: ADD / EDIT A CARD -----
     addCardBtn.addEventListener('click', function () {
       // Guard clause: if no deck is selected, do nothing.
       // (Shouldn't normally happen since the form is hidden, but it's
@@ -307,27 +422,154 @@
       }
 
       const deck = decks[selectedDeckIndex];
-      deck.cards.push({
-        question: question,
-        answer: answer,
-        // SM-2 scheduling fields — every new card starts like this:
-        repetitions: 0,
-        easeFactor: 2.5,
-        interval: 0,
-        dueDate: new Date() // due immediately, since it's never been reviewed
-      });
+
+      if (editingCardIndex === null) {
+        // Adding a brand new card
+        deck.cards.push({
+          question: question,
+          answer: answer,
+          // SM-2 scheduling fields — every new card starts like this:
+          repetitions: 0,
+          easeFactor: 2.5,
+          interval: 0,
+          dueDate: new Date() // due immediately, since it's never been reviewed
+        });
+      } else {
+        // Editing an existing card — only overwrite question/answer,
+        // leave its SM-2 scheduling fields untouched.
+        const card = deck.cards[editingCardIndex];
+        card.question = question;
+        card.answer = answer;
+        editingCardIndex = null;
+        cancelEditBtn.classList.add('hidden');
+        addCardBtn.textContent = 'Add card';
+      }
 
       questionInput.value = '';
       answerInput.value = '';
 
       saveDecks();
-      renderDeckList(); // so the "(N cards)" count updates
+      renderDeckList();  // so the "(N cards)" count updates
+      renderCardList();  // refresh the card list under the form
 
       // If the review panel was showing "no cards yet", refresh it
       // now that this deck has at least one card.
       if (currentReviewCardIndex === null) {
         startReview();
       }
+    });
+
+    cancelEditBtn.addEventListener('click', function () {
+      editingCardIndex = null;
+      questionInput.value = '';
+      answerInput.value = '';
+      addCardBtn.textContent = 'Add card';
+      cancelEditBtn.classList.add('hidden');
+    });
+
+    // ----- RENDER CARD LIST (with edit/delete) -----
+    function renderCardList() {
+      cardListEl.innerHTML = '';
+
+      if (selectedDeckIndex === null) {
+        return;
+      }
+
+      const deck = decks[selectedDeckIndex];
+
+      deck.cards.forEach(function (card, index) {
+        const li = document.createElement('li');
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'card-text';
+        textSpan.textContent = card.question + ' — ' + card.answer;
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'icon-btn';
+        editBtn.textContent = '✎';
+        editBtn.title = 'Edit card';
+        editBtn.addEventListener('click', function () {
+          editingCardIndex = index;
+          questionInput.value = card.question;
+          answerInput.value = card.answer;
+          addCardBtn.textContent = 'Save changes';
+          cancelEditBtn.classList.remove('hidden');
+          questionInput.focus();
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'icon-btn delete';
+        deleteBtn.textContent = '🗑';
+        deleteBtn.title = 'Delete card';
+        deleteBtn.addEventListener('click', function () {
+          const confirmed = confirm('Delete this card?');
+          if (!confirmed) {
+            return;
+          }
+          deck.cards.splice(index, 1);
+
+          // If we were editing this exact card, reset the form.
+          if (editingCardIndex === index) {
+            cancelEditBtn.click();
+          }
+
+          saveDecks();
+          renderDeckList();
+          renderCardList();
+          startReview(); // pick a new card since indexes shifted
+        });
+
+        li.appendChild(textSpan);
+        li.appendChild(editBtn);
+        li.appendChild(deleteBtn);
+        cardListEl.appendChild(li);
+      });
+    }
+
+    // ----- DICTIONARY LOOKUP -----
+    // Calls OUR OWN backend (not OpenAI directly!) which safely holds
+    // the real OpenAI API key on the server side. See the backend's
+    // server.js for why this extra step matters.
+    const BACKEND_URL = 'https://siamind.novinapp.net';
+
+    lookupBtn.addEventListener('click', function () {
+      const word = questionInput.value.trim();
+
+      if (word === '') {
+        return;
+      }
+
+      lookupStatus.classList.remove('hidden');
+      lookupStatus.textContent = 'Looking up "' + word + '"...';
+      lookupBtn.disabled = true;
+
+      fetch(BACKEND_URL + '/define', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: word })
+      })
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error('Lookup failed');
+          }
+          return response.json();
+        })
+        .then(function (data) {
+          let result = data.definition;
+          if (data.example) {
+            result += '\n\nExample: ' + data.example;
+          }
+          answerInput.value = result;
+          lookupStatus.textContent = 'Found a definition — feel free to edit it.';
+        })
+        .catch(function () {
+          lookupStatus.textContent = 'Could not reach the lookup service. Try typing the meaning yourself.';
+        })
+        .finally(function () {
+          lookupBtn.disabled = false;
+        });
     });
 
     // TODO 4: In review mode, show a random card from the selected deck.
