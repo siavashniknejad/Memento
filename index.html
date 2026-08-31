@@ -180,6 +180,81 @@
     font-size: 13px;
     margin: -4px 0 8px 0;
   }
+
+  /* ---- Lookup result card ---- */
+  .lookup-result {
+    background: var(--accent-light);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin: 4px 0 12px 0;
+  }
+  .lookup-result-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .lookup-word {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    line-height: 1.6;
+  }
+  .badge-pos {
+    background: var(--card-bg);
+    color: var(--accent);
+    border: 1px solid var(--border);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .badge-level {
+    background: var(--accent);
+    color: #ffffff;
+  }
+  .lookup-definition {
+    font-size: 14px;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .lookup-example {
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--card-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    font-style: italic;
+  }
+  .synonyms-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #4d7593;
+    margin-bottom: 6px;
+  }
+  .synonym-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .synonym-chip {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
 </style>
 </head>
 <body>
@@ -240,6 +315,19 @@
           <button type="button" class="secondary" id="lookupBtn">Look up</button>
         </div>
         <p class="empty-note hidden" id="lookupStatus"></p>
+        <div class="lookup-result hidden" id="lookupResult">
+          <div class="lookup-result-header">
+            <span class="lookup-word" id="resultWord"></span>
+            <span class="badge badge-pos hidden" id="resultPos"></span>
+            <span class="badge badge-level hidden" id="resultLevel"></span>
+          </div>
+          <p class="lookup-definition" id="resultDefinition"></p>
+          <p class="lookup-example hidden" id="resultExample"></p>
+          <div id="resultSynonymsBlock" class="hidden">
+            <div class="synonyms-label">Synonyms</div>
+            <div class="synonym-chips" id="resultSynonyms"></div>
+          </div>
+        </div>
         <textarea id="answerInput" rows="3" placeholder="Meaning / answer"></textarea>
         <button id="addCardBtn">Add card</button>
         <button type="button" class="secondary hidden" id="cancelEditBtn">Cancel edit</button>
@@ -336,6 +424,14 @@
     const cardListEl = document.getElementById('cardList');
     const lookupBtn = document.getElementById('lookupBtn');
     const lookupStatus = document.getElementById('lookupStatus');
+    const lookupResult = document.getElementById('lookupResult');
+    const resultWord = document.getElementById('resultWord');
+    const resultPos = document.getElementById('resultPos');
+    const resultLevel = document.getElementById('resultLevel');
+    const resultDefinition = document.getElementById('resultDefinition');
+    const resultExample = document.getElementById('resultExample');
+    const resultSynonymsBlock = document.getElementById('resultSynonymsBlock');
+    const resultSynonyms = document.getElementById('resultSynonyms');
     const reviewCard = document.getElementById('reviewCard');
     const showAnswerBtn = document.getElementById('showAnswerBtn');
     const knowActions = document.getElementById('knowActions');
@@ -550,6 +646,8 @@
 
         questionInput.value = '';
         answerInput.value = '';
+        lookupResult.classList.add('hidden');
+        lookupStatus.classList.add('hidden');
         await loadDecks();   // refresh card counts
         await loadCards();
         if (currentReviewCard === null) {
@@ -568,6 +666,8 @@
       answerInput.value = '';
       addCardBtn.textContent = 'Add card';
       cancelEditBtn.classList.add('hidden');
+      lookupResult.classList.add('hidden');
+      lookupStatus.classList.add('hidden');
     });
 
     function renderCardList() {
@@ -692,22 +792,75 @@
 
       lookupStatus.classList.remove('hidden');
       lookupStatus.textContent = 'Looking up "' + word + '"...';
+      lookupResult.classList.add('hidden');
       lookupBtn.disabled = true;
 
       try {
         const data = await api('/define', { method: 'POST', body: { word: word } });
-        let result = data.definition;
+        renderLookupResult(data);
+
+        // Keep existing behavior: the editable answer field is still
+        // pre-filled with definition + example, and the user can edit
+        // it before saving the card — unchanged from before.
+        let result = data.definition || '';
         if (data.example) {
           result += '\n\nExample: ' + data.example;
         }
         answerInput.value = result;
-        lookupStatus.textContent = 'Found a definition — feel free to edit it.';
+
+        lookupStatus.textContent = 'Found a definition — feel free to edit it below before saving.';
       } catch (error) {
+        lookupResult.classList.add('hidden');
         lookupStatus.textContent = 'Could not reach the lookup service. Try typing the meaning yourself.';
       } finally {
         lookupBtn.disabled = false;
       }
     });
+
+    // Fills in the rich lookup-result card (word, part of speech, CEFR
+    // level, definition, example, synonyms). Any field that's missing
+    // or empty is hidden rather than shown as blank/"undefined".
+    function renderLookupResult(data) {
+      resultWord.textContent = data.word || '';
+
+      if (data.partOfSpeech) {
+        resultPos.textContent = data.partOfSpeech;
+        resultPos.classList.remove('hidden');
+      } else {
+        resultPos.classList.add('hidden');
+      }
+
+      if (data.level) {
+        resultLevel.textContent = data.level;
+        resultLevel.classList.remove('hidden');
+      } else {
+        resultLevel.classList.add('hidden');
+      }
+
+      resultDefinition.textContent = data.definition || '';
+
+      if (data.example) {
+        resultExample.textContent = data.example;
+        resultExample.classList.remove('hidden');
+      } else {
+        resultExample.classList.add('hidden');
+      }
+
+      resultSynonyms.innerHTML = '';
+      if (Array.isArray(data.synonyms) && data.synonyms.length > 0) {
+        data.synonyms.forEach(function (synonym) {
+          const chip = document.createElement('span');
+          chip.className = 'synonym-chip';
+          chip.textContent = synonym;
+          resultSynonyms.appendChild(chip);
+        });
+        resultSynonymsBlock.classList.remove('hidden');
+      } else {
+        resultSynonymsBlock.classList.add('hidden');
+      }
+
+      lookupResult.classList.remove('hidden');
+    }
 
     // ================================================================
     // SERVICE WORKER
