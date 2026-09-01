@@ -1,6 +1,6 @@
 {
-  "name": "SiaMind",
-  "short_name": "SiaMind",
+  "name": "Memento",
+  "short_name": "Memento",
   "description": "A simple spaced-repetition flashcard app",
   "start_url": "./index.html",
   "display": "standalone",
