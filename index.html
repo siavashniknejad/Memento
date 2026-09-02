@@ -352,7 +352,8 @@
         <button id="addCardBtn">Add card</button>
         <button type="button" class="secondary hidden" id="cancelEditBtn">Cancel edit</button>
 
-        <ul id="cardList"></ul>
+        <button type="button" class="link" id="toggleCardsBtn">Show cards (0)</button>
+        <ul id="cardList" class="hidden"></ul>
       </div>
     </div>
 
@@ -442,6 +443,7 @@
     const addCardBtn = document.getElementById('addCardBtn');
     const cancelEditBtn = document.getElementById('cancelEditBtn');
     const cardListEl = document.getElementById('cardList');
+    const toggleCardsBtn = document.getElementById('toggleCardsBtn');
     const lookupBtn = document.getElementById('lookupBtn');
     const lookupStatus = document.getElementById('lookupStatus');
     const lookupResult = document.getElementById('lookupResult');
@@ -467,6 +469,9 @@
     let cardsInSelectedDeck = [];
     let editingCardId = null;
     let currentReviewCard = null;
+    // The card list under "Add a card" is collapsed by default — with many
+    // cards it made the page very long. The user opens it only when needed.
+    let cardListVisible = false;
 
     // ================================================================
     // AUTH SCREEN
@@ -615,6 +620,7 @@
     async function selectDeck(deckId) {
       selectedDeckId = deckId;
       editingCardId = null;
+      cardListVisible = false; // start collapsed on every deck switch
       resetLookupUI();
       renderDeckList();
       updateAddCardVisibility();
@@ -701,8 +707,27 @@
       resetLookupUI();
     });
 
+    // Shows/hides the list of existing cards and keeps the button label
+    // (and its card count) in sync.
+    function updateCardListVisibility() {
+      const count = cardsInSelectedDeck.length;
+      if (cardListVisible) {
+        cardListEl.classList.remove('hidden');
+        toggleCardsBtn.textContent = 'Hide cards (' + count + ')';
+      } else {
+        cardListEl.classList.add('hidden');
+        toggleCardsBtn.textContent = 'Show cards (' + count + ')';
+      }
+    }
+
+    toggleCardsBtn.addEventListener('click', function () {
+      cardListVisible = !cardListVisible;
+      updateCardListVisibility();
+    });
+
     function renderCardList() {
       cardListEl.innerHTML = '';
+      updateCardListVisibility();
 
       cardsInSelectedDeck.forEach(function (card) {
         const li = document.createElement('li');
